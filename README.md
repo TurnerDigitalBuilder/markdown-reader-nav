@@ -28,6 +28,7 @@ This is a **simple, low-maintenance** single-file Markdown reader:
   - Checkbox keys use `{#id}` if present in the checklist line, e.g.
     `- [ ] Pi boots cleanly {#hw.boot}`
   - Otherwise a slug of the item text is used
+  - When loaded from `https`/`localhost`, the hash uses Web Crypto SHA-1; for `file://` loads the app falls back to a lightweight deterministic hash so there are no errors opening local files.
 
 ## Markdown tips
 
