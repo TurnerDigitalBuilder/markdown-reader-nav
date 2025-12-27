@@ -1,0 +1,637 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Markdown Reader</title>
+
+  <!-- Libraries (small + maintained) -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.7/dist/purify.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mark.js@8.11.1/dist/mark.min.js"></script>
+
+  <style>
+    :root{
+      --bg:#0b1220;
+      --panel:#111a2d;
+      --panel2:#0f172a;
+      --text:#e5e7eb;
+      --muted:#9ca3af;
+      --border:#22304a;
+      --accent:#60a5fa;
+      --accent2:#a78bfa;
+      --codebg:#0a101e;
+      --mark:#fde68a;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --radius: 14px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
+
+    :root[data-theme="light"]{
+      --bg:#f6f7fb;
+      --panel:#ffffff;
+      --panel2:#ffffff;
+      --text:#0f172a;
+      --muted:#475569;
+      --border:#e2e8f0;
+      --accent:#2563eb;
+      --accent2:#7c3aed;
+      --codebg:#0b1220;
+      --mark:#fde68a;
+      --shadow: 0 8px 24px rgba(2,6,23,.10);
+    }
+
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      font-family:var(--sans);
+      background:var(--bg);
+      color:var(--text);
+    }
+
+    a{ color: var(--accent); text-decoration:none; }
+    a:hover{ text-decoration:underline; }
+
+    header{
+      position:sticky; top:0; z-index:10;
+      background: linear-gradient(180deg, rgba(0,0,0,.30), transparent), var(--bg);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(8px);
+    }
+    .bar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding:12px 16px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .brand{
+      display:flex; align-items:center; gap:10px; min-width:0;
+      font-weight:800; letter-spacing:-.02em;
+    }
+    .badge{
+      width:34px; height:34px; border-radius:10px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display:grid; place-items:center;
+      box-shadow: var(--shadow);
+      flex:0 0 auto;
+    }
+    .brand span{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+    .btnrow{ display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+    button{
+      border:1px solid var(--border);
+      background:var(--panel);
+      color:var(--text);
+      padding:8px 10px;
+      border-radius:10px;
+      font-weight:700;
+      font-size:12px;
+      cursor:pointer;
+    }
+    button:hover{ filter: brightness(1.06); }
+    button.primary{
+      border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+      background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 22%, var(--panel)), var(--panel));
+    }
+    button.danger:hover{ border-color: #ef4444; }
+
+    .wrap{
+      max-width:1200px;
+      margin:0 auto;
+      padding:16px;
+      display:grid;
+      grid-template-columns: 320px 1fr;
+      gap:16px;
+      align-items:start;
+    }
+
+    aside, main{
+      background:var(--panel2);
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+
+    aside{ position:sticky; top:72px; max-height: calc(100vh - 88px); display:flex; flex-direction:column; }
+    .asideTop{ padding:14px; border-bottom:1px solid var(--border); }
+    .docmeta{ display:flex; flex-direction:column; gap:6px; }
+    .docmeta .title{ font-weight:900; font-size:14px; }
+    .docmeta .sub{ font-size:12px; color:var(--muted); }
+
+    .controls{ display:grid; gap:10px; padding:14px; border-bottom:1px solid var(--border); }
+    .row{ display:flex; gap:8px; flex-wrap:wrap; }
+    input[type="search"]{
+      width:100%;
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid var(--border);
+      background:var(--panel);
+      color:var(--text);
+      outline:none;
+      font-size:13px;
+    }
+
+    .drop{
+      border:2px dashed color-mix(in srgb, var(--muted) 40%, var(--border));
+      border-radius: 14px;
+      padding:14px;
+      text-align:center;
+      cursor:pointer;
+      user-select:none;
+      background: color-mix(in srgb, var(--panel) 55%, transparent);
+    }
+    .drop:hover{ border-color: var(--accent); }
+    .drop .big{ font-size:28px; }
+    .drop .small{ color: var(--muted); font-size:12px; margin-top:6px; }
+
+    nav{ overflow:auto; padding:10px; }
+    nav a{
+      display:flex; gap:10px; align-items:flex-start;
+      padding:8px 10px;
+      border-radius:12px;
+      color: var(--text);
+    }
+    nav a:hover{ background: color-mix(in srgb, var(--accent) 10%, transparent); text-decoration:none; }
+    nav .lvl3{ padding-left: 26px; color: color-mix(in srgb, var(--text) 80%, var(--muted)); }
+    nav .hash{ color: var(--muted); font-family: var(--mono); font-size: 11px; }
+
+    main{ padding:18px; }
+    .empty{
+      padding:46px 18px;
+      text-align:center;
+      color: var(--muted);
+    }
+    .empty h2{ color:var(--text); margin:0 0 10px; }
+
+    /* Markdown content */
+    .content{ line-height:1.6; font-size:15px; }
+    .content h1, .content h2, .content h3{ line-height:1.25; }
+    .content h1{ font-size:28px; margin: 0 0 12px; }
+    .content h2{ font-size:20px; margin: 26px 0 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+    .content h3{ font-size:16px; margin: 18px 0 8px; }
+    .content p{ margin: 10px 0; }
+    .content code{
+      font-family: var(--mono);
+      font-size: 13px;
+      background: color-mix(in srgb, var(--panel) 65%, transparent);
+      border: 1px solid var(--border);
+      padding: 2px 6px;
+      border-radius: 8px;
+    }
+    .content pre{
+      background: var(--codebg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      overflow:auto;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.03);
+    }
+    .content pre code{
+      background: transparent;
+      border: none;
+      padding: 0;
+      color: #e5e7eb;
+      font-size: 13px;
+    }
+    .content table{
+      width:100%;
+      border-collapse:collapse;
+      margin: 14px 0;
+      overflow:auto;
+    }
+    .content th, .content td{
+      border:1px solid var(--border);
+      padding:10px 10px;
+      text-align:left;
+      vertical-align:top;
+      font-size:13px;
+    }
+    .content th{
+      background: color-mix(in srgb, var(--panel) 75%, transparent);
+      color: color-mix(in srgb, var(--text) 90%, var(--muted));
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      font-size: 11px;
+    }
+    .content blockquote{
+      margin: 12px 0;
+      padding: 12px 14px;
+      border-left: 4px solid color-mix(in srgb, var(--accent) 65%, var(--border));
+      background: color-mix(in srgb, var(--accent) 10%, transparent);
+      border-radius: 12px;
+    }
+    .content ul{ margin: 10px 0 10px 22px; }
+    .content li{ margin: 6px 0; }
+
+    /* Task list (checkboxes) */
+    .content input[type="checkbox"]{
+      width: 16px; height: 16px;
+      margin-right: 8px;
+      transform: translateY(2px);
+      accent-color: var(--accent);
+    }
+
+    /* Search highlight */
+    mark{ background: var(--mark); padding: 0 2px; border-radius: 4px; }
+
+    /* Mobile */
+    @media (max-width: 980px){
+      .wrap{ grid-template-columns: 1fr; }
+      aside{ position:relative; top:auto; max-height:none; }
+    }
+
+    /* Print */
+    @media print{
+      header, aside, .no-print{ display:none !important; }
+      body{ background:white; color:black; }
+      main{ box-shadow:none; border:none; }
+      .content pre{ color:black; }
+    }
+  </style>
+</head>
+
+<body>
+  <header class="no-print">
+    <div class="bar">
+      <div class="brand">
+        <div class="badge" aria-hidden="true">📄</div>
+        <span id="appTitle">Markdown Reader</span>
+      </div>
+      <div class="btnrow">
+        <button id="themeBtn" class="primary" type="button">◐ Theme</button>
+        <button id="printBtn" type="button">🖨 Print</button>
+        <button id="exportBtn" type="button">↓ Export</button>
+        <button id="importBtn" type="button">↑ Import</button>
+        <button id="resetBtn" class="danger" type="button">↻ Reset checks</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <aside class="no-print">
+      <div class="asideTop">
+        <div class="docmeta">
+          <div class="title" id="docTitle">No document loaded</div>
+          <div class="sub" id="docSub">Drop a .md file or click the box below.</div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <input type="search" id="search" placeholder="Search… (highlights matches)" />
+        <div class="row">
+          <button id="openBtn" class="primary" type="button">Open .md</button>
+          <button id="clearSearchBtn" type="button">Clear</button>
+        </div>
+
+        <div id="drop" class="drop" tabindex="0" role="button" aria-label="Drop markdown file">
+          <div class="big">⬇️</div>
+          <div class="small"><strong>Drop</strong> a markdown file here<br/>or click to browse</div>
+        </div>
+        <input id="file" type="file" accept=".md,.markdown,.txt" hidden />
+        <input id="importFile" type="file" accept=".json" hidden />
+      </div>
+
+      <nav id="toc" aria-label="Table of contents">
+        <div style="padding:14px; color: var(--muted); font-size:12px;">
+          Load a document to see navigation.
+        </div>
+      </nav>
+    </aside>
+
+    <main>
+      <div id="main">
+        <div class="empty">
+          <div style="font-size:42px; margin-bottom:12px;">📋</div>
+          <h2>No markdown loaded</h2>
+          <div>Open a file to view it with a simple TOC, search highlight, theme toggle, and persistent task checkboxes.</div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // =========================================================================
+    // Simple Markdown Reader
+    // - Uses marked.js for Markdown parsing (no custom parser)
+    // - Optional YAML frontmatter (--- ... ---) for title/version/owner/etc.
+    // - Task list checkboxes persist per-document
+    // =========================================================================
+
+    const THEME_KEY = "mdreader_theme";
+    const DOC_STATE_PREFIX = "mdreader_state_";
+
+    let currentDoc = null; // { hash, meta, mdBody, stateKey }
+    let markInstance = null;
+
+    // ----- Theme -----
+    function getTheme(){ return localStorage.getItem(THEME_KEY) || "dark"; }
+    function setTheme(t){
+      localStorage.setItem(THEME_KEY, t);
+      document.documentElement.dataset.theme = t;
+    }
+    function toggleTheme(){ setTheme(getTheme() === "dark" ? "light" : "dark"); }
+
+    // ----- Utilities -----
+    function escapeHtml(s){
+      return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+    }
+    function slugify(s){
+      return String(s).toLowerCase().trim().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"").slice(0,48) || "item";
+    }
+
+    async function sha1(text){
+      const data = new TextEncoder().encode(text);
+      const buf = await crypto.subtle.digest("SHA-1", data);
+      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,"0")).join("");
+    }
+
+    function splitFrontmatter(md){
+      const lines = md.split(/\r?\n/);
+      if (lines[0]?.trim() !== "---") return { meta:{}, body: md };
+      let i = 1;
+      const meta = {};
+      for (; i < lines.length; i++){
+        if (lines[i].trim() === "---"){ i++; break; }
+        const m = lines[i].match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
+        if (m) meta[m[1]] = m[2];
+      }
+      return { meta, body: lines.slice(i).join("\n") };
+    }
+
+    function getDocState(stateKey){
+      try { return JSON.parse(localStorage.getItem(stateKey) || "{}"); }
+      catch { return {}; }
+    }
+    function setDocState(stateKey, obj){
+      localStorage.setItem(stateKey, JSON.stringify(obj));
+    }
+
+    // ----- Rendering -----
+    function normalizeHeadings(container){
+      container.querySelectorAll("h1,h2,h3,h4,h5").forEach(h => {
+        const txt = h.textContent || "";
+        const idMatch = txt.match(/\{#([\w.-]+)\}/);
+        if (idMatch) h.id = idMatch[1];
+        const cleaned = txt.replace(/\s*\{[#.][^}]+\}\s*/g, " ").replace(/\s+/g," ").trim();
+        if (cleaned) h.textContent = cleaned;
+      });
+    }
+
+    function buildTOC(container){
+      const toc = document.getElementById("toc");
+      const heads = Array.from(container.querySelectorAll("h2,h3"));
+      if (!heads.length){
+        toc.innerHTML = '<div style="padding:14px; color: var(--muted); font-size:12px;">No headings found.</div>';
+        return;
+      }
+      toc.innerHTML = heads.map(h => {
+        if (!h.id) h.id = slugify(h.textContent || "section");
+        const lvl = h.tagName === "H3" ? "lvl3" : "";
+        return \`
+          <a class="\${lvl}" href="#\${escapeHtml(h.id)}">
+            <span class="hash">#</span>
+            <span>\${escapeHtml(h.textContent || "")}</span>
+          </a>\`;
+      }).join("");
+
+      toc.querySelectorAll("a").forEach(a => {
+        a.addEventListener("click", (e) => {
+          e.preventDefault();
+          const id = a.getAttribute("href").slice(1);
+          document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+      });
+    }
+
+    function wireTaskCheckboxes(container, stateKey){
+      const state = getDocState(stateKey);
+
+      // Marked renders GFM task lists as disabled checkboxes.
+      container.querySelectorAll('li input[type="checkbox"]').forEach((cb, idx) => {
+        cb.disabled = false;
+
+        const li = cb.closest("li");
+        if (!li) return;
+
+        // Prefer {#id} if present in the original markdown line
+        const html = li.innerHTML;
+        const m = html.match(/\{#([\w.-]+)\}/);
+        const taskId = m ? m[1] : slugify(li.textContent.replace(/\s+/g," ").trim());
+
+        // Remove the visible {#...} tag from the list item, if present.
+        li.innerHTML = li.innerHTML.replace(/\s*\{#[^}]+\}\s*/g, " ");
+
+        // Re-find the checkbox after innerHTML rewrite.
+        const newCb = li.querySelector('input[type="checkbox"]');
+        if (!newCb) return;
+        newCb.disabled = false;
+
+        const key = taskId;
+        newCb.dataset.taskKey = key;
+
+        if (state[key] === true) newCb.checked = true;
+
+        newCb.addEventListener("change", () => {
+          const next = getDocState(stateKey);
+          next[key] = !!newCb.checked;
+          setDocState(stateKey, next);
+        });
+      });
+    }
+
+    function renderDoc(mdText){
+      const { meta, body } = splitFrontmatter(mdText);
+
+      // marked config: keep it plain + predictable
+      marked.setOptions({
+        gfm: true,
+        breaks: false,
+        mangle: false,
+        headerIds: true
+      });
+
+      // Render + sanitize
+      const raw = marked.parse(body);
+      const safe = DOMPurify.sanitize(raw, { USE_PROFILES: { html: true } });
+
+      const container = document.createElement("div");
+      container.className = "content";
+      container.innerHTML = safe;
+
+      normalizeHeadings(container);
+
+      // Put into DOM
+      const main = document.getElementById("main");
+      main.innerHTML = "";
+      main.appendChild(container);
+
+      // TOC
+      buildTOC(container);
+
+      // Doc header
+      const title = meta.title || container.querySelector("h1")?.textContent || "Untitled document";
+      document.getElementById("docTitle").textContent = title;
+      document.title = title;
+      document.getElementById("appTitle").textContent = title;
+
+      const subBits = [];
+      if (meta.version) subBits.push("Version " + meta.version);
+      if (meta.owner) subBits.push("Owner: " + meta.owner);
+      if (meta.status) subBits.push(meta.status);
+      document.getElementById("docSub").textContent = subBits.join(" · ") || "Loaded.";
+
+      return { meta, body };
+    }
+
+    // ----- Search highlight -----
+    function clearHighlights(){
+      const content = document.querySelector("#main .content");
+      if (!content) return;
+      markInstance = markInstance || new Mark(content);
+      markInstance.unmark();
+    }
+
+    function highlight(term){
+      const content = document.querySelector("#main .content");
+      if (!content) return;
+
+      markInstance = markInstance || new Mark(content);
+      markInstance.unmark({
+        done: () => {
+          if (!term) return;
+          markInstance.mark(term, { separateWordSearch: false });
+        }
+      });
+    }
+
+    // ----- File IO -----
+    async function loadMarkdownFromFile(file){
+      const md = await file.text();
+      const hash = await sha1(md);
+      const stateKey = DOC_STATE_PREFIX + hash;
+
+      currentDoc = { hash, stateKey, fileName: file.name };
+
+      renderDoc(md);
+
+      // Task checkboxes persist per document hash
+      wireTaskCheckboxes(document.querySelector("#main .content"), stateKey);
+
+      // Re-apply current search highlight if any
+      const term = document.getElementById("search").value.trim();
+      highlight(term);
+    }
+
+    function downloadJson(filename, obj){
+      const blob = new Blob([JSON.stringify(obj, null, 2)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    // ----- Buttons -----
+    function resetChecks(){
+      if (!currentDoc) return;
+      if (!confirm("Reset all checkboxes for this document?")) return;
+
+      setDocState(currentDoc.stateKey, {});
+      document.querySelectorAll('#main input[type="checkbox"][data-task-key]').forEach(cb => cb.checked = false);
+    }
+
+    function exportState(){
+      if (!currentDoc) return alert("Load a markdown file first.");
+      const state = getDocState(currentDoc.stateKey);
+      downloadJson("md-progress.json", {
+        exportedAt: new Date().toISOString(),
+        docHash: currentDoc.hash,
+        fileName: currentDoc.fileName,
+        state
+      });
+    }
+
+    async function importStateFromFile(file){
+      if (!file) return;
+      let data;
+      try { data = JSON.parse(await file.text()); }
+      catch { return alert("That doesn't look like valid JSON."); }
+
+      if (!data.docHash || !data.state) return alert("Invalid file: expected { docHash, state }.");
+      const key = DOC_STATE_PREFIX + data.docHash;
+
+      // Save regardless of what's currently loaded (so you can import before opening the md)
+      setDocState(key, data.state);
+
+      // If it matches current doc, apply instantly
+      if (currentDoc && currentDoc.hash === data.docHash){
+        wireTaskCheckboxes(document.querySelector("#main .content"), currentDoc.stateKey);
+      }
+      alert("Imported progress.");
+    }
+
+    // ----- Init -----
+    function init(){
+      setTheme(getTheme());
+
+      document.getElementById("themeBtn").addEventListener("click", toggleTheme);
+      document.getElementById("printBtn").addEventListener("click", () => window.print());
+      document.getElementById("resetBtn").addEventListener("click", resetChecks);
+
+      document.getElementById("exportBtn").addEventListener("click", exportState);
+
+      const importFile = document.getElementById("importFile");
+      document.getElementById("importBtn").addEventListener("click", () => importFile.click());
+      importFile.addEventListener("change", () => {
+        const file = importFile.files?.[0];
+        importStateFromFile(file);
+        importFile.value = "";
+      });
+
+      const fileInput = document.getElementById("file");
+      const drop = document.getElementById("drop");
+
+      document.getElementById("openBtn").addEventListener("click", () => fileInput.click());
+      drop.addEventListener("click", () => fileInput.click());
+      drop.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") fileInput.click(); });
+
+      fileInput.addEventListener("change", () => {
+        const file = fileInput.files?.[0];
+        if (file) loadMarkdownFromFile(file);
+        fileInput.value = "";
+      });
+
+      // Drag & drop
+      drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.style.borderColor = "var(--accent)"; });
+      drop.addEventListener("dragleave", () => { drop.style.borderColor = ""; });
+      drop.addEventListener("drop", (e) => {
+        e.preventDefault();
+        drop.style.borderColor = "";
+        const file = e.dataTransfer.files?.[0];
+        if (file) loadMarkdownFromFile(file);
+      });
+
+      // Search highlight
+      const search = document.getElementById("search");
+      const clearBtn = document.getElementById("clearSearchBtn");
+      search.addEventListener("input", () => highlight(search.value.trim()));
+      clearBtn.addEventListener("click", () => { search.value = ""; clearHighlights(); });
+
+      // Small shortcut: / focuses search
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "/" && !e.ctrlKey && !e.metaKey && document.activeElement?.tagName !== "INPUT"){
+          e.preventDefault();
+          search.focus();
+        }
+      });
+    }
+
+    document.addEventListener("DOMContentLoaded", init);
+  </script>
+</body>
+</html>
