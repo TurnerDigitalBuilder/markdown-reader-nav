@@ -413,11 +413,11 @@
       toc.innerHTML = heads.map(h => {
         if (!h.id) h.id = slugify(h.textContent || "section");
         const lvl = h.tagName === "H3" ? "lvl3" : "";
-        return \`
-          <a class="\${lvl}" href="#\${escapeHtml(h.id)}">
+        return `
+          <a class="${lvl}" href="#${escapeHtml(h.id)}">
             <span class="hash">#</span>
-            <span>\${escapeHtml(h.textContent || "")}</span>
-          </a>\`;
+            <span>${escapeHtml(h.textContent || "")}</span>
+          </a>`;
       }).join("");
 
       toc.querySelectorAll("a").forEach(a => {
