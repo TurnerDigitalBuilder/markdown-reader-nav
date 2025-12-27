@@ -1,4 +1,4 @@
-# Markdown Reader (SarcBox Build Notes)
+# Markdown Reader
 
 This is a **simple, low-maintenance** single-file Markdown reader:
 
@@ -15,7 +15,7 @@ This is a **simple, low-maintenance** single-file Markdown reader:
 ```
 .
 ├── index.html                 # the app (open in a browser)
-└── build-note-v1-25-12-27.md  # example markdown (optional)
+└── markdown.md  # example markdown (optional)
 ```
 
 ## How it works
@@ -37,7 +37,7 @@ If your markdown starts with:
 
 ```yaml
 ---
-title: SarcBox – Boxless Bench Build
+title: Engineering Document
 version: v0.2
 owner: Ben Ferrer
 status: Current working configuration
