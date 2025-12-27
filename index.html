@@ -344,10 +344,31 @@
       return String(s).toLowerCase().trim().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"").slice(0,48) || "item";
     }
 
+    function fallbackHash(text){
+      // Lightweight, deterministic hash for environments without Web Crypto (e.g., file://)
+      let h1 = 0x811c9dc5; // FNV-1a 32-bit offset basis
+      for (let i = 0; i < text.length; i++){
+        h1 ^= text.charCodeAt(i);
+        h1 = (h1 >>> 0) * 0x01000193;
+      }
+      return h1.toString(16).padStart(8, "0");
+    }
+
     async function sha1(text){
-      const data = new TextEncoder().encode(text);
-      const buf = await crypto.subtle.digest("SHA-1", data);
-      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,"0")).join("");
+      const encoder = new TextEncoder();
+      const data = encoder.encode(text);
+
+      // Web Crypto works on https/localhost, but may be unavailable for file://
+      if (crypto?.subtle?.digest){
+        try {
+          const buf = await crypto.subtle.digest("SHA-1", data);
+          return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,"0")).join("");
+        } catch (err){
+          console.warn("Falling back to lightweight hash:", err);
+        }
+      }
+
+      return fallbackHash(text);
     }
 
     function splitFrontmatter(md){
